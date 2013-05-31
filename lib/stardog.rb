@@ -17,5 +17,6 @@ module Stardog
 
   autoload :Database,    'stardog/database'
   autoload :Errors,      'stardog/errors'
+  autoload :Server,      'stardog/server'
   autoload :Transaction, 'stardog/transaction'
 end

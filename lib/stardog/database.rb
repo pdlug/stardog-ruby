@@ -1,37 +1,48 @@
+require 'set'
+
 module Stardog
   class Database
-    attr_accessor :url, :name, :username, :password
+    attr_accessor :server, :name, :username, :password
+
+    REASONING_LEVELS = Set.new([:NONE, :RDFS, :QL, :RL, :EL, :DL])
 
     def initialize(params={})
       params.each do |k,v|
         self.send("#{k}=".to_sym, v) if self.respond_to?("#{k}=".to_sym)
       end
-      self.url = self.url.sub(/\/+$/, '') unless self.url.nil?
     end
 
 
     # Size of the database (number of triples)
     # @return [Integer]
     def size
-      self.execute_request(:get, "#{self.url}/size")[0..-1].to_i
+      self.execute_request(:get, "/size")[0..-1].to_i
     end
 
 
     # Execute a SPARQL query
     # @param sparql [String] the SPARQL query
     # @param opts [Hash] the options
+    # @option opts [Symbol] :reasoning the reasoning level to apply (NONE, RDFS, QL, RL, EL, DL)
     # @option opts [String] :baseURI
     # @option opts [Integer] :limit
     # @option opts [Integer] :offset
     def query(sparql, opts={})
+      headers = {
+        accept:       'application/sparql-results+json',
+        content_type: 'text/plain'
+      }
+
+      unless opts[:reasoning].blank?
+        raise "Invalid reasoning level: #{opts[:reasoning]}" unless REASONING_LEVELS.member?(opts[:reasoning])
+        headers['SD-Connection-String'] = "reasoning=#{opts[:reasoning]}"
+      end
+
       res = self.execute_request(
         :get,
-        "#{self.url}/#{self.name}/query",
-        params:       opts.slice(:baseURI, :offset, :limit).merge(query: sparql),
-        headers: {
-          accept:       'application/sparql-results+json',
-          content_type: 'text/plain'
-        }
+        "/query",
+        params:  opts.slice(:baseURI, :offset, :limit).merge(query: sparql),
+        headers: headers
       )
 
       res.blank? ? [] : SPARQL::Client.parse_json_bindings(res)
@@ -44,39 +55,10 @@ module Stardog
       Transaction.new(self).start(&block)
     end
 
-
-    # Wrapper around RestClient::Request.execute to set up authentication and provide uniform error
-    # handling.
-    # @param method [Symbol] HTTP method, any method supported by RestClient (e.g. :get, :post, :head, etc.)
-    # @param url [String] URL
-    # @param opts [Hash<Symbol,Object>] additional options
-    # @option opts [Hash] :headers request headers
-    # @option opts [Hash] :params URL parameters
-    # @option opts [nil,String,IO] :payload request payload for verbs that support it
-    # @raise [Errors::StardogError]
-    # @return [RestClient::Response]
+    # Execute an HTTP request relative to the base URL of this database
+    # @see Server#execute_request
     def execute_request(method, url, opts={})
-      req_params = {
-        method:   method,
-        url:      url,
-        headers:  {},
-        user:     self.username,
-        password: self.password
-      }
-
-      req_params[:payload] = opts[:payload] unless opts[:payload].blank?
-      req_params[:headers].merge!(opts[:headers]) unless opts[:headers].blank?
-      req_params[:headers][:params] = opts[:params] unless opts[:params].blank?
-
-      begin
-        RestClient::Request.execute(req_params)
-      rescue RestClient::Conflict
-        raise Errors::Conflict
-      rescue RestClient::Unauthorized
-        raise Errors::Unauthorized
-      rescue RestClient::Exception => e
-        raise Errors::ServerError, "#{e.http_code}: #{e.http_body}"
-      end
+      self.server.execute_request(method, [self.name, url.sub(/^\//, '')].join('/'), opts.merge(username: self.username, password: self.password))
     end
   end
 end

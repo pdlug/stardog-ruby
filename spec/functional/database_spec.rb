@@ -5,23 +5,16 @@ describe Stardog::Database do
   let(:name)     { /[:word:]/.gen }
   let(:username) { /[:word:]/.gen }
   let(:password) { /[:word:]/.gen }
-  let(:database) { Stardog::Database.new(url: url, name: name, username: username, password: password) }
+  let(:database) { Stardog::Server.new(url: url).db(name, username: username, password: password) }
 
   describe 'properties' do
-    let(:database) { Stardog::Database.new(url: url) }
+    let(:database) { Stardog::Database.new }
 
-    %w(url username password).each do |p|
+    %w(server name username password).each do |p|
       it "should have #{p}" do
         database.should respond_to(p.to_sym)
         database.should respond_to("#{p}=".to_sym)
       end
-    end
-  end
-
-  describe 'initialization' do
-    it 'should remove trailing slashes on URL' do
-      database = Stardog::Database.new(url: "#{url}/")
-      database.url.should == url
     end
   end
 
@@ -52,9 +45,9 @@ describe Stardog::Database do
             headers: {
               'Content-Type' => 'text/plain',
               'Accept' => 'application/sparql-results+json'
-            }
-          ).to_return(body: json)
-        end
+            }).
+          to_return(body: json)
+      end
 
       it 'should execute the query with an authorization header' do
         database.query(sparql).should_not be_nil
@@ -81,6 +74,36 @@ describe Stardog::Database do
       it 'should return an empty Enumerable' do
         res.should be_a_kind_of(Enumerable)
         res.should be_empty
+      end
+    end
+
+    describe 'with reasoning' do
+      # SD-Connection-String
+      describe 'with valid reasoning type' do
+        let(:level) { Stardog::Database::REASONING_LEVELS.to_a.pick }
+
+        before do
+          @stub = stub_request(:get, %r{/query}).
+            with(
+              query: hash_including({query: sparql}),
+              headers: {
+                'Content-Type' => 'text/plain',
+                'Accept' => 'application/sparql-results+json',
+                'SD-Connection-String' => "reasoning=#{level}"
+              }).
+            to_return(body: json)
+        end
+
+        it 'should set the reasoning as a key/value pair on SD-Connection-String' do
+          database.query(sparql, reasoning: level).should_not be_nil
+          @stub.should have_been_requested
+        end
+      end
+
+      describe 'with invalid reasoning type' do
+        it 'should raise an error' do
+          expect { database.query(sparql, reasoning: :FOO) }.to raise_error(/Invalid reasoning level/)
+        end
       end
     end
 

@@ -11,11 +11,12 @@ module Stardog
 
 
     # Start a transaction on the server and store the ID.
+    # @yield [Transaction]
     # @return [Transaction]
     def start(&block)
       res = self.database.execute_request(
         :post,
-        "#{self.database.url}/#{self.database.name}/transaction/begin",
+        "/transaction/begin",
         headers: {
           content_type: 'text/plain'
         }
@@ -36,7 +37,7 @@ module Stardog
       begin
         self.database.execute_request(
           :post,
-          "#{self.database.url}/#{self.database.name}/transaction/commit/#{self.id}",
+          "/transaction/commit/#{self.id}",
           headers: {
             content_type: 'text/plain'
           }
@@ -59,7 +60,7 @@ module Stardog
       begin
         self.database.execute_request(
           :post,
-          "#{self.database.url}/#{self.database.name}/transaction/rollback/#{self.id}",
+          "/transaction/rollback/#{self.id}",
           headers: {
             content_type: 'text/plain'
           }
@@ -87,7 +88,7 @@ module Stardog
       }
       req_params[:params] = {'graph-uri' => graph_uri} if graph_uri
 
-      self.database.execute_request(:post, "#{self.database.url}/#{self.database.name}/#{self.id}/add", req_params)
+      self.database.execute_request(:post, "/#{self.id}/add", req_params)
 
       true
     end
@@ -107,7 +108,7 @@ module Stardog
       }
       req_params[:params] = {'graph-uri' => graph_uri} if graph_uri
 
-      self.database.execute_request(:post, "#{self.database.url}/#{self.database.name}/#{self.id}/remove", req_params)
+      self.database.execute_request(:post, "/#{self.id}/remove", req_params)
 
       true
     end
@@ -120,7 +121,7 @@ module Stardog
       req_params = {}
       req_params[:params] = {'graph-uri' => graph_uri} if graph_uri
 
-      self.database.execute_request(:post, "#{self.database.url}/#{self.database.name}/#{self.id}/clear", req_params)
+      self.database.execute_request(:post, "/#{self.id}/clear", req_params)
 
       true
     end

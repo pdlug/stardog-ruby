@@ -6,12 +6,9 @@ require 'bundler/setup'
 $:.push File.join(File.dirname(__FILE__), '..', 'lib')
 require 'stardog'
 
-db = Stardog::Database.new(
-  url: 'http://127.0.0.1:5822',
-  name: 'rubytest',
-  username: 'admin',
-  password: 'admin'
-)
+
+db = Stardog::Server.new(url: 'http://127.0.0.1:5822')
+  .db('rubytest', username: 'admin', password: 'admin')
 
 puts "Which distinct subjects are in our database?"
 db.query('SELECT DISTINCT ?s WHERE { ?s ?p ?o } LIMIT 10').each do |result|

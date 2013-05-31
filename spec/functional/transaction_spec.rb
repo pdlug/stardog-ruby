@@ -3,7 +3,7 @@ require File.dirname(__FILE__) + '/../spec_helper'
 describe Stardog::Transaction do
   let(:url)         { %r{http://[:word:]\.(com|net|org)}.gen }
   let(:name)        { /[:word:]/.gen }
-  let(:database)    { Stardog::Database.new(url: url, name: name, username: /[:word:]/.gen, password: /[:word:]/.gen) }
+  let(:database)    { Stardog::Server.new(url: url).db(name, username: /[:word:]/.gen, password: /[:word:]/.gen) }
   let(:transaction) { Stardog::Transaction.new(database) }
 
   let(:txid) { /\d{10}/.gen }
@@ -77,7 +77,7 @@ describe Stardog::Transaction do
         end
 
         it 'should return true' do
-          expect { transaction.commit }.to raise_error(Stardog::TransactionConflict, /Conflict/)
+          expect { transaction.commit }.to raise_error(Stardog::TransactionConflict)
         end
 
         it 'should be committed' do
@@ -129,7 +129,7 @@ describe Stardog::Transaction do
         end
 
         it 'should return true' do
-          expect { transaction.rollback }.to raise_error(Stardog::TransactionConflict, /Conflict/)
+          expect { transaction.rollback }.to raise_error(Stardog::TransactionConflict)
         end
 
         it 'should not be committed' do

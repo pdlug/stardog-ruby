@@ -14,13 +14,8 @@ This is a very basic wrapper around the Stardog HTTP (REST) API providing basic 
 
     ```
     require 'stardog'
-
-    db = Stardog::Database.new(
-      url:      'http://127.0.0.1:5822',
-      name:     'rubytest',
-      username: 'admin',
-      password: 'admin'
-    )
+    db = Stardog::Server.new(url: 'http://127.0.0.1:5822')
+      .db('rubytest', username: 'admin', password: 'admin')
     ```
 
 1. Load some data
