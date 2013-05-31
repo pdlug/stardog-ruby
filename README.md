@@ -56,6 +56,13 @@ This is a very basic wrapper around the Stardog HTTP (REST) API providing basic 
     stardog-admin db drop rubytest
     ```
 
+## Configuring
+
+The `Stardog::Server` object providers the base wrapper around connections to the server and uses [Faraday](https://github.com/lostisland/faraday) to enable support for multiple HTTP backends. Any of the HTTP client adapters supported by Faraday can be used by specifying them in the `:adapter` parameter (e.g. `Stardog::Server.new(url: ..., adapter: :typhoeus)`). By default the `:net_http` adapter is used since it is built into ruby and requires no external dependencies, please see the note below for some of the limitations with this.
+
+**IMPORTANT NOTE:** Stardog requires that the SD-* headers be specified with the proper capitalization, this does *not* work with the default ruby :net_http adapter. The ruby net/http library normalizes all headers by downcasing them then introducing mixed caps, this turns headers like `SD-Connection-String` into `Sd-Connection-String` and Stardog disgards it (which is wrong, HTTP headers are case insensitive per the spec). For now the only solution is to use an adapter that does not mess with the headers this way, I am successfully using both :excon and :typheous but others may work as well.
+
+
 ## See Also
 
 * [Stardog Documentation](http://stardog.com/docs) - the Stardog docs are awesome, read them.

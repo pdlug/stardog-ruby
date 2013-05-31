@@ -23,7 +23,8 @@ module Stardog
       end
 
       def error_code
-        @response.headers[:sd_error_code].to_i unless @response.headers[:sd_error_code].blank?
+        code = @response.try(:headers).try(:[], :sd_error_code)
+        code.blank? ? nil : code.to_i 
       end
 
       def inspect
@@ -31,25 +32,29 @@ module Stardog
       end
 
       def message
-        @message || "#{SD_ERROR_CODES[self.error_code]} HTTP Status=#{@response.code}, #{@response.body}"
+        @message || "#{SD_ERROR_CODES[self.error_code]} HTTP Status=#{@response.status}, #{@response.body}"
       end
 
       class << self
-        # Factory to create the appropriate error object for a given RestClient::Exception. 
-        # @param res [RestClient::Exception]
+        # Factory to create the appropriate error object for a given HTTP response.
+        # @param res [Faraday::Response]
         # @param message [String]
         # @return [Stardog::Errors::StardogError]
-        def from_restclient_exception(rc_ex, message=nil)
-          klass = case rc_ex
-          when RestClient::Conflict
+        def from_response(response, message=nil)
+          klass = case response.status
+          when 401
+            Unauthorized
+          when 403
+            Forbidden
+          when 404
+            NotFound
+          when 409
             Conflict
-          when RestClient::Unauthorized, RestClient::Forbidden, RestClient::ResourceNotFound
-            Errors.const_get(rc_ex.class.to_s.match(/::(.+)$/)[1].sub(/^Resource/, '').to_sym)
           else
             self
           end
 
-          klass.new(message, rc_ex.response)
+          klass.new(message, response)
         end
       end
     end

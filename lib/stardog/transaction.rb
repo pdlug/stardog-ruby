@@ -20,7 +20,7 @@ module Stardog
         headers: {
           content_type: 'text/plain'
         }
-      )
+      ).body
       self.id = res
       @state = :started
       self.instance_eval(&block) if block_given?

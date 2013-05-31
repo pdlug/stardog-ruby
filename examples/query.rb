@@ -6,7 +6,6 @@ require 'bundler/setup'
 $:.push File.join(File.dirname(__FILE__), '..', 'lib')
 require 'stardog'
 
-
 db = Stardog::Server.new(url: 'http://127.0.0.1:5822')
   .db('rubytest', username: 'admin', password: 'admin')
 

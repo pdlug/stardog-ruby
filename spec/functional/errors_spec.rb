@@ -12,10 +12,10 @@ describe Stardog::Errors do
       error.should respond_to(:error_code)
     end
 
-    describe '#from_restclient_exception' do
+    describe '#from_response' do
       let(:server) { Stardog::Server.new(url: %r{http://[:word:]\.(com|net|org)}.gen)}
 
-      describe 'given RestClient::Response' do
+      describe 'given a status code and optional body' do
         describe 'when a SD-Error-Code header is given' do
           let(:code) { Stardog::Errors::SD_ERROR_CODES.keys.pick }
           let(:body) { /[:sentence:]/.gen }
@@ -50,8 +50,9 @@ describe Stardog::Errors do
       end
 
       describe 'when a message is provided' do
-        let(:msg) { /[:sentence:]/.gen }
-        let(:err) { Stardog::Errors::StardogError.from_restclient_exception(RestClient::ResourceNotFound.new(RestClient::Response.create(nil, nil, nil)), msg) }
+        let(:msg)      { /[:sentence:]/.gen }
+        let(:response) { Struct.new('Response', :status, :headers, :body).new(500, {}, '') }
+        let(:err)      { Stardog::Errors::StardogError.from_response(response, msg) }
 
         it 'should use it as #message' do
           err.message.should == msg

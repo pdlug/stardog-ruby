@@ -18,6 +18,18 @@ describe Stardog::Server do
       server = Stardog::Server.new(url: "#{url}/")
       server.url.should == url
     end
+
+    it 'should default to using the :net_http Faraday adapter' do
+      server.connection.builder.handlers.should == [Faraday::Adapter::NetHttp]
+    end
+
+    describe 'when :adapter is given' do
+      let(:server)  { Stardog::Server.new(adapter: :test) }
+
+      it 'should configure the Faraday connection to use the provided adapter' do
+        server.connection.builder.handlers.should == [Faraday::Adapter::Test]
+      end
+    end
   end
 
   describe '#db' do

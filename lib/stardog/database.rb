@@ -16,7 +16,7 @@ module Stardog
     # Size of the database (number of triples)
     # @return [Integer]
     def size
-      self.execute_request(:get, "/size")[0..-1].to_i
+      self.execute_request(:get, "/size").body.to_i
     end
 
 
@@ -43,7 +43,7 @@ module Stardog
         "/query",
         params:  opts.slice(:baseURI, :offset, :limit).merge(query: sparql),
         headers: headers
-      )
+      ).body
 
       res.blank? ? [] : SPARQL::Client.parse_json_bindings(res)
     end

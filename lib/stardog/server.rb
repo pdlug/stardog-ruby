@@ -1,12 +1,19 @@
+require 'base64'
+
 module Stardog
   class Server
     attr_accessor :url, :username, :password
 
-    def initialize(params={})
-      params.each do |k,v|
+    # @param opts [Hash<Symbol,Object>]
+    # @option opts [Symbol] :adapter the Faraday adapter to use (e.g. :net_http, :typhoeus, :patron, :excon, :em_http, etc.)
+    def initialize(opts={})
+      opts.each do |k,v|
         self.send("#{k}=".to_sym, v) if self.respond_to?("#{k}=".to_sym)
       end
       self.url = self.url.sub(/\/+$/, '') unless self.url.nil?
+      @conn = Faraday.new(url: self.url) do |faraday|
+        faraday.adapter(opts.fetch(:adapter, :net_http))
+      end
     end
 
 
@@ -18,9 +25,18 @@ module Stardog
     end
 
 
-    # Wrapper around RestClient::Request.execute to set up authentication and provide uniform error
-    # handling.
-    # @param method [Symbol] HTTP method, any method supported by RestClient (e.g. :get, :post, :head, etc.)
+    # The configured Faraday connection
+    # @api :semipublic
+    # @yield [Faraday::Connection]
+    # @return [Faraday::Connection]
+    def connection
+      yield @conn if block_given?
+      @conn
+    end
+
+
+    # Wrapper around Faraday requests to set up authentication and provide uniform error handling.
+    # @param method [Symbol] HTTP method, any method supported by Faraday (e.g. :get, :post, :head, :put, etc.)
     # @param url [String] URL url relative to the base URL of the server (e.g. '/size', not 'http://.../size')
     # @param opts [Hash<Symbol,Object>] additional options
     # @option opts [Hash] :headers request headers
@@ -29,30 +45,24 @@ module Stardog
     # @option opts [String] :username username for basic authentication
     # @option opts [String] :password passwrod for basic authentication
     # @raise [Errors::StardogError]
-    # @return [RestClient::Response]
+    # @return [Faraday::Response]
     def execute_request(method, url, opts={})
-      req_params = {
-        method:   method,
-        url:      [self.url, url.sub(/^\//, '')].join('/'),
-        headers:  {}
-      }
-      
-      unless opts[:username].blank?
-        req_params[:user] = opts[:username]
-        req_params[:password] = opts[:password]
+      response = self.connection.send(method) do |req|
+        req.url(url, opts[:params])
+
+        unless opts[:username].blank?
+          req.headers.merge!('Authorization' => 'Basic ' + Base64.urlsafe_encode64([opts[:username], opts[:password]].join(':')))
+        end
+
+        req.headers.merge!(opts[:headers]) unless opts[:headers].blank?
+        req.body = opts[:payload] unless opts[:payload].blank?
       end
 
-      req_params[:payload] = opts[:payload] unless opts[:payload].blank?
-      req_params[:headers].merge!(opts[:headers]) unless opts[:headers].blank?
-      req_params[:headers][:params] = opts[:params] unless opts[:params].blank?
-
-      begin
-        RestClient::Request.execute(req_params) do |response, request, result, &block|
-          response.return!(request, result, &block)
-        end
-      rescue RestClient::Exception => e
-        #raise Errors::ServerError, "#{e.http_code}: #{e.http_body}"
-        raise Stardog::Errors::StardogError.from_restclient_exception(e)
+      case response.status
+      when 200..299
+        response
+      else
+        raise Stardog::Errors::StardogError.from_response(response)
       end
     end
   end

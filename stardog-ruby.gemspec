@@ -24,9 +24,9 @@ Gem::Specification.new do |s|
   s.require_paths      = ["lib"]
 
   s.add_dependency 'activesupport'
+  s.add_dependency 'faraday'
   s.add_dependency 'multi_json'
   s.add_dependency 'rdf'
-  s.add_dependency 'rest-client'
   s.add_dependency 'sparql-client'
 
   s.add_development_dependency 'rake'

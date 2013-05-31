@@ -1,8 +1,10 @@
 require 'active_support/core_ext/hash/slice'
 require 'active_support/core_ext/object/blank'
+require 'active_support/core_ext/object/try'
+require 'faraday'
 require 'multi_json'
-require 'restclient'
 require 'sparql/client'
+
 
 module Stardog
   class Format
