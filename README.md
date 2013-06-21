@@ -1,5 +1,7 @@
 # Stardog - A Simple Ruby Client for the Stardog RDF Database
 
+[![Code Climate](https://codeclimate.com/github/pdlug/stardog-ruby.png)](https://codeclimate.com/github/pdlug/stardog-ruby)
+
 This is a very basic wrapper around the Stardog HTTP (REST) API providing basic support for adding/removing/clearing data in a database and querying using SPARQL.
 
 ## Getting started
