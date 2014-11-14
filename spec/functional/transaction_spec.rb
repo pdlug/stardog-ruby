@@ -1,52 +1,60 @@
+# encoding: utf-8
+
 require File.dirname(__FILE__) + '/../spec_helper'
 
 describe Stardog::Transaction do
   let(:url)         { %r{http://[:word:]\.(com|net|org)}.gen }
   let(:name)        { /[:word:]/.gen }
-  let(:database)    { Stardog::Server.new(url: url).db(name, username: /[:word:]/.gen, password: /[:word:]/.gen) }
+  let(:database) do
+    Stardog::Server.new(url: url)
+      .db(name, username: /[:word:]/.gen, password: /[:word:]/.gen)
+  end
+
   let(:transaction) { Stardog::Transaction.new(database) }
 
   let(:txid) { /\d{10}/.gen }
 
   describe 'initialization' do
-    it 'should accept a Database' do
-      transaction.should_not be_nil
-      transaction.database.should == database
+    it 'accepts a Database' do
+      expect(transaction).not_to be_nil
+      expect(transaction.database).to eq(database)
     end
   end
 
   describe '#start' do
     before do
-      stub_request(:post, %r{/transaction/begin}).
-        to_return(body: txid)
+      stub_request(:post, %r{/transaction/begin})
+        .to_return(body: txid)
       @retval = transaction.start
     end
 
-    it 'should start a transaction on the server and set the ID to the one returned' do
-      transaction.id.should == txid
+    it 'starts a transaction on the server, sets the ID to the one returned' do
+      expect(transaction.id).to eq(txid)
     end
 
-    it 'should return the transaction' do
-      @retval.should == transaction
+    it 'returns the transaction' do
+      expect(@retval).to eq(transaction)
     end
 
-    it 'should mark the transaction as started' do
-      transaction.should be_started
+    it 'marks the transaction as started' do
+      expect(transaction).to be_started
     end
   end
 
   describe '#commit' do
     describe 'transaction not started' do
-      it 'should raise an exception' do
-        expect { transaction.commit }.to raise_error(Stardog::TransactionConflict)
+      it 'raises an exception' do
+        expect do
+          transaction.commit
+        end.to raise_error(Stardog::TransactionConflict)
       end
     end
 
     describe 'transaction started' do
       describe 'successful commit' do
         before do
-          stub_request(:post, %r{/#{name}/transaction/begin}).
-            to_return(body: txid)
+          stub_request(:post, %r{/#{name}/transaction/begin})
+            .to_return(body: txid)
           transaction.start
 
           stub_request(:post, %r{/transaction/commit/#{txid}})
@@ -54,34 +62,36 @@ describe Stardog::Transaction do
           @retval = transaction.commit
         end
 
-        it 'should return true' do
-          @retval.should be_true
+        it 'returns true' do
+          expect(@retval).to eq(true)
         end
 
-        it 'should be committed' do
-          transaction.should be_committed
+        it 'is committed' do
+          expect(transaction).to be_committed
         end
       end
 
       describe 'duplicate commit (or other conflict)' do
-          before do
-          stub_request(:post, %r{/#{name}/transaction/begin}).
-            to_return(body: txid)
+        before do
+          stub_request(:post, %r{/#{name}/transaction/begin})
+            .to_return(body: txid)
           transaction.start
 
           stub_request(:post, %r{/transaction/commit/#{txid}})
           transaction.commit
 
-          stub_request(:post, %r{/transaction/commit/#{txid}}).
-            to_return(status: 409)
+          stub_request(:post, %r{/transaction/commit/#{txid}})
+            .to_return(status: 409)
         end
 
-        it 'should return true' do
-          expect { transaction.commit }.to raise_error(Stardog::TransactionConflict)
+        it 'returns true' do
+          expect do
+            transaction.commit
+          end.to raise_error(Stardog::TransactionConflict)
         end
 
-        it 'should be committed' do
-          transaction.should be_committed
+        it 'is committed' do
+          expect(transaction).to be_committed
         end
       end
     end
@@ -89,16 +99,18 @@ describe Stardog::Transaction do
 
   describe '#rollback' do
     describe 'transaction not started' do
-      it 'should raise an exception' do
-        expect { transaction.rollback }.to raise_error(Stardog::TransactionConflict)
+      it 'raises an exception' do
+        expect do
+          transaction.rollback
+        end.to raise_error(Stardog::TransactionConflict)
       end
     end
 
     describe 'transaction started' do
       describe 'successful rollback' do
         before do
-          stub_request(:post, %r{/#{name}/transaction/begin}).
-            to_return(body: txid)
+          stub_request(:post, %r{/#{name}/transaction/begin})
+            .to_return(body: txid)
           transaction.start
 
           stub_request(:post, %r{/transaction/rollback/#{txid}})
@@ -106,90 +118,100 @@ describe Stardog::Transaction do
           @retval = transaction.rollback
         end
 
-        it 'should return true' do
-          @retval.should be_true
+        it 'returns true' do
+          expect(@retval).to eq(true)
         end
 
-        it 'should not be committed' do
-          transaction.should_not be_committed
+        it 'is not committed' do
+          expect(transaction).not_to be_committed
         end
       end
 
       describe 'duplicate rollback (or other conflict)' do
         before do
-          stub_request(:post, %r{/#{name}/transaction/begin}).
-            to_return(body: txid)
+          stub_request(:post, %r{/#{name}/transaction/begin})
+            .to_return(body: txid)
           transaction.start
 
           stub_request(:post, %r{/transaction/rollback/#{txid}})
           transaction.rollback
 
-          stub_request(:post, %r{/transaction/rollback/#{txid}}).
-            to_return(status: 409)
+          stub_request(:post, %r{/transaction/rollback/#{txid}})
+            .to_return(status: 409)
         end
 
-        it 'should return true' do
-          expect { transaction.rollback }.to raise_error(Stardog::TransactionConflict)
+        it 'returns true' do
+          expect do
+            transaction.rollback
+          end.to raise_error(Stardog::TransactionConflict)
         end
 
-        it 'should not be committed' do
-          transaction.should_not be_committed
+        it 'is not committed' do
+          expect(transaction).not_to be_committed
         end
       end
     end
   end
 
   describe '#add' do
-    let(:data) { '<http://www.stardog.com/> <http://purl.org/dc/elements/1.1/title> "Stardog" .' }
+    let(:data) do
+      '<http://www.stardog.com/> <http://purl.org/dc/elements/1.1/title> '\
+      '"Stardog" .'
+    end
 
     before do
-      stub_request(:post, %r{/#{name}/transaction/begin}).
-        to_return(body: txid)
+      stub_request(:post, %r{/#{name}/transaction/begin})
+        .to_return(body: txid)
 
       transaction.start
 
-      stub_request(:post, %r{/#{name}/#{txid}/add}).
-        with(body: data, headers: {'Content-Type' => Stardog::Format::N_TRIPLES}).
-        to_return(status: 200)
+      stub_request(:post, %r{/#{name}/#{txid}/add})
+        .with(body: data,
+              headers: { 'Content-Type' => Stardog::Format::N_TRIPLES })
+        .to_return(status: 200)
     end
 
-    it 'should return true' do
-      transaction.add(data, Stardog::Format::N_TRIPLES).should be_true
+    it 'returns true' do
+      expect(transaction.add(data, Stardog::Format::N_TRIPLES)).to eq(true)
     end
   end
 
   describe '#remove' do
-    let(:data) { '<http://stardog.com/> <http://purl.org/dc/elements/1.1/title> "Stardog" .' }
+    let(:data) do
+      '<http://stardog.com/> <http://purl.org/dc/elements/1.1/title> '\
+      '"Stardog" .'
+    end
 
     before do
-      stub_request(:post, %r{/#{name}/transaction/begin}).
-        to_return(body: txid)
+      stub_request(:post, %r{/#{name}/transaction/begin})
+        .to_return(body: txid)
 
       transaction.start
 
-      stub_request(:post, %r{/#{name}/#{txid}/remove}).
-        with(body: data, headers: {'Content-Type' => Stardog::Format::N_TRIPLES}).
-        to_return(status: 200)
+      stub_request(:post, %r{/#{name}/#{txid}/remove})
+        .with(body: data,
+              headers: { 'Content-Type' => Stardog::Format::N_TRIPLES })
+        .to_return(status: 200)
     end
 
-    it 'should return true' do
-      transaction.remove(data, Stardog::Format::N_TRIPLES).should be_true
+    it 'returns true' do
+      expect(transaction.remove(data, Stardog::Format::N_TRIPLES)).to eq(true)
     end
   end
 
   describe '#clear' do
     before do
-      stub_request(:post, %r{/#{name}/transaction/begin}).
-        to_return(body: txid)
+      stub_request(:post, %r{/#{name}/transaction/begin})
+        .to_return(body: txid)
 
       transaction.start
 
-      stub_request(:post, %r{/#{name}/#{txid}/clear}).
-        to_return(status: 200)
+      stub_request(:post, %r{/#{name}/#{txid}/clear})
+        .to_return(status: 200)
     end
 
-    it 'should return true' do
-      transaction.clear.should be_true
+    it 'returns true' do
+      expect(transaction.clear).to eq(true)
     end
   end
 end

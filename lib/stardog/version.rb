@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 module Stardog
   MAJOR = 0
   MINOR = 1

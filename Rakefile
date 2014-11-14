@@ -16,7 +16,7 @@ task default: :spec
 desc "Run all examples (or a specific spec with TASK=xxxx)"
 RSpec::Core::RakeTask.new do |t|
   t.pattern = 'spec/functional/**/*_spec.rb'
-  t.rspec_opts = %w(-fs --color)
+  t.rspec_opts = %w(-fd --color)
 end
 
 require 'rake/clean'

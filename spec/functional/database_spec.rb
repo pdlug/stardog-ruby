@@ -1,26 +1,31 @@
+# encoding: utf-8
 require File.dirname(__FILE__) + '/../spec_helper'
 
-describe Stardog::Database do  
+describe Stardog::Database do
   let(:url) { %r{http://[:word:]\.(com|net|org)}.gen }
   let(:name)     { /[:word:]/.gen }
   let(:username) { /[:word:]/.gen }
   let(:password) { /[:word:]/.gen }
-  let(:database) { Stardog::Server.new(url: url).db(name, username: username, password: password) }
+  let(:database) do
+    Stardog::Server.new(url: url)
+      .db(name, username: username, password: password)
+  end
 
   describe 'properties' do
     let(:database) { Stardog::Database.new }
 
     %w(server name username password).each do |p|
-      it "should have #{p}" do
-        database.should respond_to(p.to_sym)
-        database.should respond_to("#{p}=".to_sym)
+      it "has a property #{p}" do
+        expect(database).to respond_to(p.to_sym)
+        expect(database).to respond_to("#{p}=".to_sym)
       end
     end
   end
 
   describe '#query' do
     let(:sparql)   { 'SELECT DISTINCT ?s WHERE { ?s ?p ?o } LIMIT 10' }
-    let(:json) { <<-DATA
+    let(:json) do
+      <<-DATA
       {
         "head" : {
           "vars" : [ "s" ]
@@ -35,111 +40,115 @@ describe Stardog::Database do
         }
       }
       DATA
-    }
+    end
 
     describe 'succesful results' do
-      before do
-        @stub = stub_request(:get, %r{/query}).
-          with(
-            query: hash_including({query: sparql}),
+      let!(:stub) do
+        stub_request(:get, /\/query/)
+          .with(
+            query: hash_including(query: sparql),
             headers: {
               'Content-Type' => 'text/plain',
               'Accept' => 'application/sparql-results+json'
-            }).
-          to_return(body: json)
+            })
+          .to_return(body: json)
       end
 
-      it 'should execute the query with an authorization header' do
-        database.query(sparql).should_not be_nil
-        @stub.should have_been_requested
+      it 'executes the query with an authorization header' do
+        expect(database.query(sparql)).not_to be_nil
+        expect(stub).to have_been_requested
       end
 
-      it 'should return an Enumerable of RDF::Query::Solution' do
+      it 'returns an Enumerable of RDF::Query::Solution' do
         res = database.query(sparql)
-        res.should be_a_kind_of(Enumerable)
+        expect(res).to be_a_kind_of(Enumerable)
         res.each do |sol|
-          sol.should be_a_kind_of(RDF::Query::Solution)
+          expect(sol).to be_a_kind_of(RDF::Query::Solution)
         end
       end
     end
 
     describe 'empty results' do
       before do
-        stub = stub_request(:get, %r{/query}).
-          with(query: hash_including({query: sparql})).
-          to_return(body: nil)
+        stub_request(:get, /\/query/)
+          .with(query: hash_including(query: sparql))
+          .to_return(body: nil)
       end
       let(:res) { database.query(sparql) }
 
-      it 'should return an empty Enumerable' do
-        res.should be_a_kind_of(Enumerable)
-        res.should be_empty
+      it 'returns an empty Enumerable' do
+        expect(res).to be_a_kind_of(Enumerable)
+        expect(res).to be_empty
       end
     end
 
     describe 'with reasoning' do
-      # SD-Connection-String
       describe 'with valid reasoning type' do
         let(:level) { Stardog::Database::REASONING_LEVELS.to_a.pick }
 
-        before do
-          @stub = stub_request(:get, %r{/query}).
-            with(
-              query: hash_including({query: sparql}),
+        let!(:stub) do
+          stub_request(:get, /\/query/)
+            .with(
+              query: hash_including(query: sparql),
               headers: {
                 'Content-Type' => 'text/plain',
                 'Accept' => 'application/sparql-results+json',
                 'SD-Connection-String' => "reasoning=#{level}"
-              }).
-            to_return(body: json)
+              })
+            .to_return(body: json)
         end
 
-        it 'should set the reasoning as a key/value pair on SD-Connection-String' do
-          database.query(sparql, reasoning: level).should_not be_nil
-          @stub.should have_been_requested
+        it 'sets the reasoning as a key/value pair on SD-Connection-String' do
+          expect(database.query(sparql, reasoning: level)).not_to be_nil
+          expect(stub).to have_been_requested
         end
       end
 
       describe 'with invalid reasoning type' do
-        it 'should raise an error' do
-          expect { database.query(sparql, reasoning: :FOO) }.to raise_error(/Invalid reasoning level/)
+        it 'raises an error' do
+          expect do
+            database.query(sparql, reasoning: :FOO)
+          end.to raise_error(/Invalid reasoning level/)
         end
       end
     end
 
     describe 'with :baseURI' do
       let(:baseURI) { %r{http://[:word:]/}.gen }
+      let!(:stub) do
+        stub_request(:get, /\/query/)
+          .with(query: hash_including(query: sparql, baseURI: baseURI))
+      end
 
-      it 'should add the baseURI as a query parameter' do
-        stub = stub_request(:get, %r{/query}).
-          with(query: hash_including(query: sparql, baseURI: baseURI))
-
-        database.query(sparql, baseURI: baseURI).should_not be_nil
-        stub.should have_been_requested
+      it 'adds the baseURI as a query parameter' do
+        expect(database.query(sparql, baseURI: baseURI)).not_to be_nil
+        expect(stub).to have_been_requested
       end
     end
 
     describe 'with :offset' do
       let(:offset) { (0..99).pick }
+      let!(:stub) do
+        stub_request(:get, /\/query/)
+          .with(query: hash_including(query: sparql, offset: offset.to_s))
+      end
 
-      it 'should add the offset as a query parameter' do
-        stub = stub_request(:get, %r{/query}).
-          with(query: hash_including(query: sparql, offset: offset.to_s))
-
+      it 'adds the offset as a query parameter' do
         database.query(sparql, offset: offset)
-        stub.should have_been_requested
+        expect(stub).to have_been_requested
       end
     end
 
     describe 'with :limit' do
       let(:limit) { (0..99).pick }
+      let!(:stub) do
+        stub_request(:get, /\/query/)
+          .with(query: hash_including(query: sparql, limit: limit.to_s))
+      end
 
-      it 'should add the limit as a query parameter' do
-        stub = stub_request(:get, %r{/query}).
-          with(query: hash_including(query: sparql, limit: limit.to_s))
-
-        database.query(sparql, limit: limit).should_not be_nil
-        stub.should have_been_requested
+      it 'adds the limit as a query parameter' do
+        expect(database.query(sparql, limit: limit)).not_to be_nil
+        expect(stub).to have_been_requested
       end
     end
   end
@@ -147,11 +156,11 @@ describe Stardog::Database do
   describe '#size' do
     let(:size) { (1..9999).pick }
 
-    it 'should return the size of the database' do
-      stub_request(:get, %r{/size}).
-        to_return(body: size.to_s)
+    it 'returns the size of the database' do
+      stub_request(:get, /\/size/)
+        .to_return(body: size.to_s)
 
-      database.size.should == size
+      expect(database.size).to eq(size)
     end
   end
 
@@ -159,13 +168,13 @@ describe Stardog::Database do
     let(:txid) { /\d{10}/.gen }
 
     before do
-      stub_request(:post, %r{/transaction/begin}).
-        to_return(body: txid)
+      stub_request(:post, %r{/transaction/begin})
+        .to_return(body: txid)
     end
 
-    it 'should return transaction' do
-      database.transaction.should be_a_kind_of(Stardog::Transaction)
-      database.transaction.id.should == txid
+    it 'returns a transaction' do
+      expect(database.transaction).to be_a_kind_of(Stardog::Transaction)
+      expect(database.transaction.id).to eq(txid)
     end
   end
 end

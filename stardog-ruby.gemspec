@@ -4,7 +4,7 @@ require 'stardog/version'
 Gem::Specification.new do |s|
   s.name              = 'stardog-ruby'
   s.version           = Stardog::VERSION
-  s.date              = '2013-05-27'
+  s.date              = '2014-11-14'
 
   s.required_ruby_version = ">= 1.9.2"
   s.description       = "Ruby client for the Stardog RDF database"
